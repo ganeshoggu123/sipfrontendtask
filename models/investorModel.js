@@ -1,125 +1,14 @@
-// const db = require("../utility/pgManager");
 
-
-
-// const addInvestor = (data, callback) => {
-
-//     const query = `
-//         INSERT INTO investor
-//         (
-//             investor_id,
-//             first_name,
-//             middle_name,
-//             last_name,
-//             pancard_no,
-//             aadhaar_no,
-//             passport_no,
-//             date_of_birth,
-//             gender,
-//             occupation
-//         )
-//         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//     `;
-
-//     db.run(
-//         query,
-//         [
-//             data.investor_id,
-//             data.first_name,
-//             data.middle_name,
-//             data.last_name,
-//             data.pancard_no,
-//             data.aadhaar_no,
-//             data.passport_no,
-//             data.date_of_birth,
-//             data.gender,
-//             data.occupation
-//         ],
-//         callback
-//     );
-// };
-
-
-
-// const fetchInvestor = (investorId, callback) => {
-
-//     const query = `
-//         SELECT *
-//         FROM investor
-//         WHERE investor_id = ?
-//     `;
-
-//     db.get(query, [investorId], callback);
-// };
-
-
-
-// const fetchHoldings = (investorId, callback) => {
-
-//     const query = `
-//         SELECT
-//             mf.fund_name,
-//             ph.total_units,
-//             nh.nav_value,
-//             (ph.total_units * nh.nav_value) AS current_value
-//         FROM portfolio_holdings ph
-
-//         JOIN portfolio p
-//         ON ph.portfolio_id = p.portfolio_id
-
-//         JOIN mutual_fund mf
-//         ON ph.fund_id = mf.fund_id
-
-//         JOIN nav_history nh
-//         ON mf.fund_id = nh.fund_id
-
-//         WHERE p.investor_id = ?
-
-//         AND nh.nav_date = (
-//             SELECT MAX(nav_date)
-//             FROM nav_history
-//             WHERE fund_id = mf.fund_id
-//         )
-//     `;
-
-//     db.all(query, [investorId], callback);
-// };
-
-
-// const fetchNetWorth = (investorId, callback) => {
-
-//     const query = `
-//         SELECT
-//             SUM(ph.total_units * nh.nav_value) AS total_networth
-//         FROM portfolio_holdings ph
-
-//         JOIN portfolio p
-//         ON ph.portfolio_id = p.portfolio_id
-
-//         JOIN nav_history nh
-//         ON ph.fund_id = nh.fund_id
-
-//         WHERE p.investor_id = ?
-
-//         AND nh.nav_date = (
-//             SELECT MAX(nav_date)
-//             FROM nav_history
-//             WHERE fund_id = ph.fund_id
-//         )
-//     `;
-
-//     db.get(query, [investorId], callback);
-// };
-
-// module.exports = {
-//     addInvestor,
-//     fetchInvestor,
-//     fetchHoldings,
-//     fetchNetWorth
-// };
 
 const client = require("../utility/pgManager");
-
+const users = [
+    {
+        email:"ganeshoggu@gmail.com",
+        password:"12345",
+        role:"investor",
+        isLoggedIn:false
+    }
+]
 const invalidTokens = [];
 
 const addInvestor = async (data) => {
@@ -177,12 +66,6 @@ const fetchInvestor = async (investorId) => {
 
     return client.query(query, [investorId]);
 };
-
-
-
-
-
-// FETCH HOLDINGS
 
 const fetchHoldings = async (investorId) => {
 
@@ -247,10 +130,72 @@ const fetchNetWorth = async (investorId) => {
     return client.query(query, [investorId]);
 };
 
+const fetchTransactions = async (investorId) => {
+
+    const query = `
+    
+        SELECT
+            it.transaction_id,
+            mf.fund_name,
+            sr.sip_id,
+            it.transaction_amount,
+            it.nav_at_purchase,
+            it.units_allocated,
+            it.transaction_date
+
+        FROM investment_transaction it
+
+        JOIN sip_registration sr
+        ON it.sip_id = sr.sip_id
+
+        JOIN portfolio p
+        ON sr.portfolio_id = p.portfolio_id
+
+        JOIN mutual_fund mf
+        ON it.fund_id = mf.fund_id
+
+        WHERE p.investor_id = $1
+
+        ORDER BY it.transaction_date DESC
+    `;
+
+    return client.query(query, [investorId]);
+};
+
+// const loginUser = async (email) => {
+
+//     const query = `
+//         SELECT *
+//         FROM users
+//         WHERE email = $1
+//     `;
+
+//     return client.query(query, [email]);
+// };
+
+const loginUser = async (email) => {
+
+    const query = `
+        SELECT 
+            u.user_id,
+            u.email,
+            u.password,
+            i.investor_id
+        FROM users u
+        LEFT JOIN investor i
+        ON u.user_id = i.user_id
+        WHERE u.email = $1
+    `;
+
+    return client.query(query, [email]);
+};
+
 module.exports = {
     addInvestor,
     fetchInvestor,
     fetchHoldings,
     fetchNetWorth,
-    invalidTokens
+    fetchTransactions,
+    invalidTokens,
+    loginUser
 };

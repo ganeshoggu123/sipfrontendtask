@@ -1,128 +1,10 @@
-// const { signJwt } = require('../utility/authManager');
-
-// function login(req, res) {
-
-//     const { email, password } = req.body;
-
-   
-//     if (email === 'nani@gmail.com' && password === 'nani') {
-
-//         const token = signJwt({
-//             email: email
-//         });
-
-//         return res.json({
-//             message: 'Login Success',
-//             token: token
-//         });
-//     }
-
-//     return res.status(401).json({
-//         message: 'Invalid Credentials'
-//     });
-// }
-
-// const {
-//     addInvestor,
-//     fetchInvestor,
-//     fetchHoldings,
-//     fetchNetWorth
-// } = require("../models/investorModel");
-
-
-
-// const createInvestor = (req, res) => {
-
-//     const data = req.body;
-
-//     addInvestor(data, (err) => {
-
-//         if (err) {
-
-//             if (err.message.includes("UNIQUE")) {
-//                 return res.status(400).json({
-//                     message: "Investor already exists"
-//                 });
-//             }
-
-//             return res.status(500).json({
-//                 message: "Error creating investor",
-//                 error: err.message
-//             });
-//         }
-
-//         res.status(201).json({
-//             message: "Investor created successfully"
-//         });
-//     });
-// };
-
-
-// const getInvestor = (req, res) => {
-
-//     const investorId = req.params.investorId;
-
-//     fetchInvestor(investorId, (err, row) => {
-
-//         if (err) {
-//             return res.status(500).json(err.message);
-//         }
-
-//         if (!row) {
-//             return res.status(404).json({
-//                 message: "Investor not found"
-//             });
-//         }
-
-//         res.status(200).json(row);
-//     });
-// };
-
-
-
-// const getHoldings = (req, res) => {
-
-//     const investorId = req.params.investorId;
-
-//     fetchHoldings(investorId, (err, rows) => {
-
-//         if (err) {
-//             return res.status(500).json(err.message);
-//         }
-
-//         res.status(200).json(rows);
-//     });
-// };
-
-
-
-// const getNetWorth = (req, res) => {
-
-//     const investorId = req.params.investorId;
-
-//     fetchNetWorth(investorId, (err, row) => {
-
-//         if (err) {
-//             return res.status(500).json(err.message);
-//         }
-
-//         res.status(200).json(row);
-//     });
-// };
-
-// module.exports = {
-//     createInvestor,
-//     getInvestor,
-//     getHoldings,
-//     getNetWorth,
-//     login
-// };
-
-const {
+        const {
     addInvestor,
     fetchInvestor,
     fetchHoldings,
-    fetchNetWorth
+    fetchNetWorth,
+    fetchTransactions,
+    loginUser
 } = require("../models/investorModel");
 
 const { signJwt } = require("../utility/authManager");
@@ -224,32 +106,74 @@ const getNetWorth = async (req, res) => {
     }
 };
 
+const getTransactions = async (req, res) => {
+
+    try {
+
+        const investorId = req.params.investorId;
+
+        const result = await fetchTransactions(investorId);
+
+        res.status(200).json(result.rows);
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            message: "Error fetching transactions"
+        });
+    }
+};
 
 const login = async (req, res) => {
 
-    const { email, password } = req.body;
+    try {
 
-    if (email === "nani@gmail.com" && password === "nani") {
+        const { email, password } = req.body;
+
+        const result = await loginUser(email);
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                message: "User not found"
+            });
+        }
+
+        const user = result.rows[0];
+
+        if (user.password !== password) {
+            return res.status(401).json({
+                message: "Invalid Password"
+            });
+        }
 
         const token = signJwt({
-            email
+            email: user.email
         });
 
-        return res.json({
+        return res.status(200).json({
             message: "Login Success",
-            token
+            token,
+            investorId: user.investor_id,
+            userId: user.user_id,
+            email: user.email
+        });
+
+    } catch (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+            message: "Login Error"
         });
     }
-
-    return res.status(401).json({
-        message: "Invalid Credentials"
-    });
 };
-
 module.exports = {
     createInvestor,
     getInvestor,
     getHoldings,
     getNetWorth,
+    getTransactions,
     login
 };
